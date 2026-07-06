@@ -1,0 +1,19 @@
+[build]
+  publish = "public"
+  # No build step — public/app.js is already bundled. Netlify still installs
+  # the function dependencies (resend, @netlify/blobs) from package.json.
+
+[functions]
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/store"
+  to = "/.netlify/functions/store"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/send-completion"
+  to = "/.netlify/functions/send-completion"
+  status = 200
+  force = true
