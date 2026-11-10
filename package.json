@@ -1,20 +1,21 @@
 {
   "name": "best-3pl-portal",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "description": "Best 3PL job tracking & billing portal",
   "scripts": {
-    "build": "esbuild src/app.jsx --bundle --minify --format=iife --outfile=public/app.js --loader:.js=jsx"
+    "build": "esbuild src/app.jsx --bundle --minify --format=iife --jsx=automatic --loader:.jsx=jsx --banner:js=\"/* BEST3PL BUILD-3 team-logins */\" --outfile=public/app.js"
   },
   "dependencies": {
     "@netlify/blobs": "^8.1.0",
-    "resend": "^4.5.1"
+    "@supabase/supabase-js": "^2.119.0",
+    "resend": "^6.38.0"
   },
   "devDependencies": {
     "esbuild": "^0.23.0",
+    "lucide-react": "0.383.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "lucide-react": "0.383.0"
+    "react-dom": "^18.3.1"
   }
 }
