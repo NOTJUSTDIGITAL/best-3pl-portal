@@ -1,16 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createRoot } from "react-dom/client";
+import { createClient } from "@supabase/supabase-js";
 import {
   Package, Truck, Recycle, Warehouse, ArrowLeftRight, Hammer,
   Plus, Search, ArrowLeft, CheckCircle2, Clock, Mail, Download,
   Trash2, Pencil, Building2, Phone, MapPin, User, X, LogOut, ClipboardList,
+  Users, KeyRound, UserPlus, Upload, Copy, ShieldCheck,
 } from "lucide-react";
 
 /* ----------------------------------------------------------------------------
    BEST 3PL — Job & Billing Portal
-   Settings are Netlify environment variables (see README):
-     ACCESS_CODE, RESEND_API_KEY, MAIL_FROM
-   Billing recipient is below.
+   Everyone signs in with their own email and password. Logins and data live
+   in Supabase; the settings are Netlify environment variables (see README):
+     SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, SUPABASE_SECRET_KEY,
+     RESEND_API_KEY, MAIL_FROM, BILLING_EMAIL (optional)
 ---------------------------------------------------------------------------- */
 const BILLING_EMAIL = "Dom@usawholesalesupplies.com";
 const LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAACcCAYAAAD4d6D7AAAWl0lEQVR42u1d+29cWX3/fM85986MZ/wY27FjO3GcZBNeWoVlQcDSQlmpraBFbVUehS2gVipCpZSfKrU/7R/Q/kLhJySo2oKglFJEK4EWJJ7qIu2ifbHLstkkm8Rvezwznud9nHP6w7kztrNJ7MT3zIyz5yM5Izvj8b3nfs73db4P0gARoAHgG5/78CcY2KeU1heU1nkABAeHw0MzogYnekZCfenPPv/NfwMADRA9+uij7MGVX2ab2fy/ZjzxQakUIimhtVs1h/RABHicgzOGKI6/lW01PvnLmQfbBABf/ZsPfXuiMPQnW/VWTNAMRMwtmUP6clArDVLjhZzYqjf/+5Ev/uef0jc+++FHsr731WYYRgB5bpUcesDEaMj3vWYQfpxJrT8XK6W1BncL49AbQQgeK6U18LeCCPdHUhIROYfDoUf2ILFIShDhfgZQ1jkcDn2QggAo65wNh77CEdDBEdDBEdDBwRHQwRHQwcER0MER0MHBEdDBEdDBwRHQwRHQwcER0MER0MHBEdDBEdDBwRHQwRHQwcER0MER0MHhriAG6WJcPfydLtjtfpBUmmkNPcBVZwNFwChowfUEuRNos1xdkmnDOwJABMY4GBdgnIM4N/+h1UARcqAI+K5Pfg65sXHsrKLDbemnFJSSUHEEGYWI2m1ErQaC+jZa2xU0KyU0yyW0qlsIG3VorSF8H9zPdH//NU9AIoKMIhQmp3Hmne91rEoZMgrRKG+ivPgK1n7zHFZefBbVlesgIni5ob6r6P5LQCLIOMTY7Dy01tBKOlvwLtXxjfYgEYF7PkamZjEyNYtTb3kIcRhg+fmn8Jsf/S9Wfv0MuGckolbytaqCCVoqjM+fBREBRCDmCGjDTgQA4Wcw/8A7MP/AO3DliZ/i6e98FbX1Ffj54b6QkA3CAhHnmDh19launcMhNzglm7qzsbVSgNY4/bZ34/3/8E849eC7ENSrIMZfewRUUiJTGMbo7HxXJTtYpiRjABG0ksgURvCeT/89Xvc7f9AXEvaVgEQEFRsHZGhsovszh14RkRu7Wyu848//Gqfe8k4EjVpPScj6vAKQcYTi3AKIaCDCAq85Eu7a8A998rMYPz6NOAx6Jgj6bwMqjYlT993Ck3PoDQkZtFLw86N46x99CBkfkEr3hIT9JaBW4L6P8ZNnnAMyCJJQa0y+/m04d/85ZDICUirrJGR9vGMoGSM7MoaR4yec/dd/BgIEiPw4ho+fwqkzk/AzXkLCe5CAnROQkalZZPIFE6dyBOyzQtIgAjLFGfgew+nzcxCCQSU/v8dUsJGAHfWrtXNABgXZ0UnIWCGXz2Dh3KyJVih9rxHQkHDHAXHovxo2LzwzBGIEGUkUhnNYuG/m3lPBWkl42RyKJxZ2bBCHweAhF+icoMSxxEgxj/kzx61Iwb4Q0ASgYwwVJzA8NeMckIGzBSU6ITEiQhxJFCdHcGJhCkqmayr1JxmBCDKOMDpzEtzzobWlmNOAZwPvpw4J1FvNkKRhqijcScnUHRLGODY9hjiKsbJYghAsldxh0a/V1VJiYv5sZ8sBxK0Q/V6QrFqrnqaoyaCBGw8FOpJwenYcjVoLte0mOD88CftEQJMBM24pA6YjURurl1G5/AyYlxl4SUgAwBiICXDPh8gNI1ucRm5izpCvh2GqqLF902eSKGVMzY6jXmsdXQmopYQ/VMDY7Ck7DkjysEovPYG1p34IL1c4eufMRGAig2xxClMXHkbx7APWSdjRFmF9C2D0qpNRIkAphfxwDvlCDvVaE4yzQ52git6vKyGOQoxNzyJfnLTigHTy3oLKOvxCEUz4OHLnzNpI8vbWCq489hXId38Ek2/6LXv2csIwrRSC7S0wJqBvsmZaa3DGMDw6hFq1CeJ00/cNrgRMHJDi3CkQM4fgqWZAJ1IibtUQVDe7eW9HFUxkQExg5cnvY/T0BXhDw3YkYfKZUbOKqFExKVk30bEEgtZALp8FMTq0adOHMAxZzYDp7MZ2eQ1xu96XLN/UHRDOEbcbaKxe3nOPVtZtawVx0Lj1upE5svN9Ac4PT5/eE1ArMM/D+ElLKfjJs2mWlqBlfO/EF7VC1Kja2LN7PrO+egVQat/HwjgDO3ISkAhKSuRGxjA6YykDJvm41sYiQOzeSjG06YAwE/RrrFwCcbEPsXRS+37462G9XT9j/w1PzSBTGLFiy3SSK1vlFTAurKirfjgkIAa/MGZFaRhbjxBUNtDaWjZO220JSKkJ4h47IaYGpHhiJwOG0gxAdwzpRhlRrWzaURxARQx2jJCgtQTP5JCbmOs6Aunyz3jW1avPQwYtiAOErVT3lImOEgHN8u2UYKZvSBMIra1VxEETIjN0oDQvIXj32Gng6McYZNhGfvoM/OFxO1qDEbRWqFx5BsS9/TckAUoqE8E45KX0lIBaSYhMFuMnT9uxaZIN2dpcTI739iEVAUpqbG1UBlZVM8YRNut468N/sWeTpeplE0Nj9RKaG9fB9zs10kYCy1gmiapHRQImJZhDxUlrGTCdz2tuLgKM3558GmCModlq4vqVtcQIHySbD2BcoFkp4fxv/z7GTr3R0pmwue+NX/08Ubu337U6kRthGEMpDSHoUEdyonf8Myn4o8dPQPhZOxH9hORBZR2Me2YZb/E3NDSIEdqtCIxzCI/31RakG65VSYmgXsHCg+/EQ5/4DMhCx7AOoZsb17F99XnwTO4AJosGCAjaUcLTw9kuopdLrKXEuK0MmMQ2CqrrCLY3jTcch7d9u4JCvbKNOAwA3ScC6mQ7aA2tVNf4z46M4sIHPoYLH/gomBBWz4FXnvwetJJg8A9gihiJ126FyX443JqJXq40cbaTgpX2bk5so7BWhpcfhfAP5oB4wyHGxLBRwbr3Yo+IgXEB4Wfg5wvIjx/D+PwZzL7hzRhKzsptkK9zBLp18UlsX3sBIpM/0HoRATKWCFoBGNHRScfSUsLPFTA2ZycDpmMbjcy/EW+cf8OBf+98X0MwO42DbkeS1MmnzecG1Q0s/d93wL3sgaU/Y4RWI0QYxqnYzT0hoMmAiTA6cxz58WNWHJDdYYs7N8EHw/PQWu/ELYlZaVPXIXXcruPKY/8CGbYTz1cdgLjaeMz1NmSsUrGbeyMBE+dgbO4UGOfpZ8DcE0iyt8kiwZUGMYaoWcXl738Z7fKqcTwOnCtpVG5tu5kI5cNrD9GrxdVKYWLe9YDpvWDVxj4mBmKExuoVXP3x1xFub94h+Yz6DYIQjXoLjB+lmhCtTQbMvOsB0yvCQScJBkQgEOJ2AxvP/QTrz/4k6clzZ+TTWoMLhlqlgTiUqYWtekDApAdMYQRjMyetOCAOHa2yQ7jOHm+XV1G+9DTKF59AUC2BZ3IA8TvuREFEUFKjXKqlkojaMwKa4uYI41NnkB0ZA7R2NcC2YjpaI27X0a6so7H2CupLF9HYuAbZboJ5PkQu323Pe4dCFVwwbJfraDbaqVTD9U4CJkXoxROnd0IAxB1fUgypBOU11JYuor5yCc2Nawi2NyHDwMQXs3mIXKH73sOo9o21Surme4+cEO16wFjb3wyZsSl4w0UU73sAMmghbFYRlNfQ3FhEc/M6guoGVBSCeT6Y8O7Y9hOCo1yqoV5tgguW6jAr0YsduicDxjkg6ZOQcXDGAS8LkRtGZmwKw7PnzPrLGK3SMqpXf4XK5afRLq+D+1mAsQOpYmKmP8zqUimx/Y6SBEzUb250HMNTs12b0MGiI6LR9YJBptHQ0NQ8hqbmMXXhYZR+/TjWnvohVByCCf+2allrQAiGa6+sod0KIUT65+XMLv/MFKTR4yfgZXPm4h0B7ToiREnMj+2kbiWd8LmfxdSF9+K+D3wGXqEIFQe3zhbSGp7Hsba0hdJGNekFc+S6YxF0LHfif64JZb8MxS4ZtZLITczi7Pv+CszPAUruMYs6HPM8gbXlLaxc30zV6+0xAc3Rz84JCFn7O0f7q7f2olYSmdFjmH3b+yHDoJsJpLUG5wxEhMWr61i6tmFab1iE1U/XSsHLDWHshKUeMLtVz5H+2hE/dxOnuxsSQmsUz70V2eIUVBSBCw4hOBr1Fi69uIj1lTK4sH9eb80J6fSAGZmeQ2FiyqoDIqPAqBKio3PMbFKgzZowBsbE3nZylu1lDQ0mPBTmXofS8z/D9naMrfUKquV6N/TSiwRde14wEVQUYWx23tTnpp4BY9w8GTRx8btfRBw0k3YSR4eBhoPGYWDCh8gVMHTsJIr3PYhscdouCRMveejYSWwxQtAKUVqvws+Y9ry9yg4XNhfYZMCc3XXHaS6geTjt6gba5VWQ8I5gko3eFT1RQElh+9oLWH/2x5h76I8x+YaH7JEw+cjMyAQ0GKZmilBKYfnaBoToXaqcPQJqDSbETg1I6gU15rm0S8smxMC9ozlrjvauDhGDljEWf/Yt5MZnkZ9esFLA1Snt5JkciAnEUYzp2XHISGJtuQThiZ5IQWZrVZWKkSmMYMzWGNbk45qbi4kzeUQ9YL33SyuZ9GZRKL34CzvaYzcBmOiaRjKWmJ2fxGTSC/rIzoojAmQUYfjYceRGxqw4IJ24VntrBcT5vdEDpivdFYgJtMtre+7VljOym+BSKpxYmEJxcgRxJI/orDhiSQbMgp0GkYlqiFt1BLWSmWuh760sazPKIrQ+QUrL+FWmi1Ia82eOY6SYRxzLozorzl4GTLeZYnUdcatx5JtQ3nyPaTDuWZN+nTWUYdsIiFexTGPhvhkUhnOQ8qjNitMK3M+gaGsMayLsWqUlaBndcwkOBKM1/OFil4y2ELfqJkR2wzNSyrQuObEwlTSiPCoEJIKMYwyNFjE6PWfF/us2odxcOlrB5zu5P62Qnz69x+SwsYnDemWnkdONdryUyOUzGBsftjY7mKXPP1OCOTI9By83ZCUDpjM3o721CmLinnJAjAJRYJkhjC68yc4G3rWJg+qG+Ubf/E1aA6PFfGplmDdC2Liz3WNYbfWAiVrbCGolsH0ckE49w+r1TZS36tbSilJbPS4QbFdw7j3vgz88Ya2GukPqoLJ2yygCJQ3Js7kMhOBWbEELBDQEGbfogBAI7fK6KbbxM7clYGcRa9tNtFuB1dSiQ6sjzhEHDWQKo3j9737Q4lGcOYeL2w0E1Y0kinBrZ0gIDuEJyDhM/XpSJ6BWCn52aNcYVmZj7dAqLZugLTFzjHUbTRPHElEkITwxWAUBycPsTihqNiD8DN7zqb9DvjhhbUZc52SlVVpG1Kztv4kZmY2L5ERmUGtCTA/AEIVjMyhMTlt1QJrrV6G1MnGsW8XKNECcodVoIWi1wQalCWU3bd6kXylpwiCTC+fw9o99GpOnz9ttX5Js4vryy9AqBtHtmxMRwVr3MJH2jpZxhLHZk+DCs7KDiRi0VkZVjUyAuHdL47ibVtQAcqPjPUsx2m+NiAiMcXDPh58vYPjYDGbf9ABOXni7nelRr5JoxomrLb10sJ7QFiHSFk9aKox3MqC1tpIETUQ483t/eeD3n9Xa1qXc9fUT42Ccv8qm6rROsyd9jV3Z2lpGq7R0gJEMyTG1srOAKRNQgwS31oRyN9GZl+lfrCllQnQk0J5CImva3zhx5UtPQUUBRM4z5NrHZlSd/tGDXJappEQmP2wvA+amxkz6b7UvAndtzp4O1TZdsmQUoHLpaTNHWR1kJINOAtEDLAE7DsjYzEnkxsbtOCC38khSfuu9CtMfkFB5+SkE1Y0DDaQxIxliyHjQT0KIQUYRiicWQMncWYfBgulwFWPjVz9NitL1vlqDiBCFMaS08zxTD9KNn7KUgu9wSFNTAUTYevEXxvnwDuB8wJx8tNuhtUHZ6RFQK3DP3zmCczpvoBwdghnivfrUD8D87P623y60moG1S0uHgIloz40UMXrc0hhWh0Pwz4Relh7/LqJG1ZyfH0BDERGkVGg1AmNWDWprjs4UpJHpWfhDBes1rQ53opikmQfy0hPYuviEmQdyQPucMULQjhC0Q2unSCmpYCMBOwmo2vWAGRDyKRDjaK5fw+LP/wvcP/g8EK2Nx1yvNa15wCk7IfbGsDrcLfkY2pU1XH7sK4kTwg7sHJpIhsZ2pZEMnrfjVIp0blbCy+W6bXhBbgZI/9UuR6u0hMvf/zJkuw4mMnekmRgjtJoBmvU2GGPWghqHJmDH/stPTGH42PGOT+LQp1BL55x5+/qLuPqjr0GF7Tsmn1G/DJVSLbWJSPYkYNKEcmz2JLjnW8thc9iHeKBuqcLa0z/A6i8fA4jt2wX15tKPIQxilLfqYNxun5gUVHAnA6YzhlW7EKB9xnVtMqKdBIb68stYefJ7qC9fSuaB0B2TrzOQpry6jbAdWZ+jnAIBNYjvzoBxOOx67n3Z9X0y3rU7jAamsLy2fBGlXz+O6rUXAK3veh7Ibum3uVaxLv1SIaCWEv5QAWOzp5wDklI0Ye/LDd2LAETNGlqlJdSXXsL24m/Q3lqFhjbd7xMP+O4Eq5F+69e2EIZxTxJ4D0VAIkIchhifOYn8xGQSf3b6926kntYaUApaSSgZQ8URVNRG3G4gam4jrG0hqG52J8LHzZop3xQemJ8xxeyHiL+a6kGOWrWJ0no1Kd4a8AaVOmnB1qxs4rlv/CNyuUw3b0zvv8cdOpo26YqllYJWMXRCQC1jKBmZ1hnJ6RIxDuICzM/uHI/tsgnvFoyZ7liLr6z39P4PrYIZ5wgaDbzw+BM4+/oT8H0BpVwmzJ1qXdqVoLozcNBkfneHD+6eAbIrkzqVS2AM1y8tW5sHYs8G1BpcCMRS4+qVTZx93RyEzw0Jnag7jFjc6/Fa5APnDIuvrKOyVe954VY6JyFag3NCq9HGlYvLOHN+zjS0cSQc5EgOiADGGRavrmNjrdKXrhEsvRsyJZCNWgtXX15xxt5Ak88IDAC4dmkVGysd8vX+WljaNyYEx3algWuXVwenENyh+3wAQHgC7VaISy8uYmtzOwk29+eahI2bFB5HeXMbjDPMn562Vk/gcDBVC2gwxsAFQxxJrC2VsL5ShpSy78X6wtZOE55Aaa0Czhnm5o8hjpVLUugR2Ywzbco9O6o2DGNU1+vYXK+g3QrBOetZrK/nBNwtCdeXy+CC4/jcRM86r7+mIji7GhxRZ/KXNn2eozBGs9FGrdpArdpEGMZgjLpSbxC6hAnbO5J7rDtxcep4cafC3uFuYjNd0ugkDiilgpIKcSwRRzHCIEa7FaLdDhG2Q0SRaRC/l3iDE6cVvVg3zg0JtysNR73D0C+RWqrTVUtpKJm8KgWtEqlGRiIyomTqEQ0c8XpHwF2oVRqOSYfWud1/ujZ1x95jYmf6Zodsu+3CQURPCciFy5Q5vBLGbbqZDjbZ+k5A7Y6IHW6AE0kOjoAOjoAODo6ADo6ADg6OgA6OgA4OjoAOjoAODo6ADo6ADg6OgA6OgA4OjoAOjoAODo6ADo6ADg6OgA6OgA4OjoAOjoAODo6ADo6ADg6OgA6OgA4O+xBQ67brmObQaxjO6TYD0bMe51q7KdMOPYLWWhnO4TmmgX8WjBERpFsahx5JPykYIxB9nj3yhW9+rRGG3y7mhzytEcNJQgd7ok9pjbiYH/IaYfjtR77wza/xRx99lC1Urv1PA+x81vfuZ4zIDTpySF/qEXzBKeMJ1gjCbxWC5ifO/+FHJSXzSjQAfP2zH/m44PSpWOk3a63zcL10HVKSfUTUEIye1lJ/6cNf+I9/BwAN0P8DahZZhnqxykcAAAAASUVORK5CYII=";
@@ -38,41 +41,150 @@ const MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
 const SANS =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
-/* ---- backend client (Netlify Functions: data store + email) ------------- */
-let ACCESS = "";
-try { ACCESS = sessionStorage.getItem("b3pl_code") || ""; } catch {}
-function setAccess(code) { ACCESS = code; try { sessionStorage.setItem("b3pl_code", code); } catch {} }
-function clearAccess() { ACCESS = ""; try { sessionStorage.removeItem("b3pl_code"); } catch {} }
+/* ---- backend: Supabase (logins + database), Netlify functions (email, team) */
+let sb = null; // Supabase client, created once the site's settings load
 
-async function apiGet() {
-  const res = await fetch("/api/store", { headers: { "x-access-code": ACCESS } });
-  if (!res.ok) throw new Error("load failed " + res.status);
-  return res.json();
+async function initBackend() {
+  const res = await fetch("/api/config");
+  if (!res.ok) throw new Error("config");
+  const cfg = await res.json();
+  if (!cfg.supabaseUrl || !cfg.supabaseKey) throw new Error("config");
+  sb = createClient(cfg.supabaseUrl, cfg.supabaseKey);
 }
-async function apiSave(clients, jobs) {
+
+async function apiPost(path, payload) {
   try {
-    const res = await fetch("/api/store", {
+    const { data: s } = await sb.auth.getSession();
+    const token = s?.session?.access_token;
+    const res = await fetch(path, {
       method: "POST",
-      headers: { "content-type": "application/json", "x-access-code": ACCESS },
-      body: JSON.stringify({ clients, jobs }),
-    });
-    return res.ok;
-  } catch { return false; }
-}
-async function apiSendCompletion(payload) {
-  try {
-    const res = await fetch("/api/send-completion", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-access-code": ACCESS },
+      headers: { "content-type": "application/json", ...(token ? { authorization: "Bearer " + token } : {}) },
       body: JSON.stringify(payload),
     });
-    return res.ok;
-  } catch { return false; }
+    let data = {};
+    try { data = await res.json(); } catch {}
+    return { ...data, ok: res.ok };
+  } catch {
+    return { ok: false, error: "Couldn't reach the server. Check your connection and try again." };
+  }
+}
+
+/* The database returns at most 1,000 rows per request, so read in pages. */
+async function fetchRows(table, columns = "*") {
+  const PAGE = 1000;
+  let out = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await sb.from(table).select(columns).order("created_at").order("id").range(from, from + PAGE - 1);
+    if (error) throw error;
+    out = out.concat(data);
+    if (data.length < PAGE) return out;
+  }
+}
+async function fetchAll() {
+  const [c, j, p] = await Promise.all([
+    fetchRows("clients"),
+    fetchRows("jobs"),
+    fetchRows("profiles", "id, email, full_name, role, must_change_password, created_at"),
+  ]);
+  return { clients: c.map(clientFromRow), jobs: j.map(jobFromRow), team: p };
+}
+
+/* shape used on screen  <->  row stored in the database */
+const SECTIONS = ["prep", "cross", "sanit", "storage", "freight", "labor"];
+const clientFromRow = (r) => ({
+  id: r.id, name: r.contact_name || "", businessName: r.business_name || "",
+  address: r.address || "", phone: r.phone || "", email: r.email || "",
+});
+const clientToRow = (c) => ({
+  id: c.id, business_name: c.businessName || "", contact_name: c.name || "",
+  phone: c.phone || "", email: c.email || "", address: c.address || "",
+});
+function jobFromRow(r) {
+  const d = r.details || {};
+  const blank = blankSections();
+  const j = {
+    id: r.id, clientId: r.client_id, jobDate: dateOnly(r.job_date), reference: r.reference || "",
+    notes: r.notes || "", status: r.status, completedAt: dateOnly(r.completed_at) || null, createdAt: r.created_at,
+    createdBy: r.created_by, updatedBy: r.updated_by, completedBy: r.completed_by, legacyId: r.legacy_id || null,
+  };
+  for (const k of SECTIONS) j[k] = { ...blank[k], ...(d[k] || {}) };
+  return j;
+}
+const jobToRow = (j) => ({
+  id: j.id, client_id: j.clientId, job_date: isDate(j.jobDate) ? j.jobDate : null, reference: j.reference || "",
+  status: j.status === "completed" ? "completed" : "in_progress",
+  completed_at: j.status === "completed" ? (isDate(j.completedAt) ? j.completedAt : today()) : null,
+  details: Object.fromEntries(SECTIONS.map((k) => [k, j[k]])), notes: j.notes || "",
+});
+
+/* One-time move of the old shared-code portal's data into the database.
+   Safe to run again: records that were already brought over are skipped. */
+async function importLegacy(accessCode) {
+  let res;
+  try { res = await fetch("/api/store", { headers: { "x-access-code": accessCode } }); }
+  catch { throw new Error("Couldn't reach the old portal's data. Check your connection."); }
+  if (res.status === 401) throw new Error("That access code didn't match the old portal.");
+  if (!res.ok) throw new Error("Couldn't read the old portal's data (error " + res.status + ").");
+  const old = await res.json();
+  const oldClients = Array.isArray(old.clients) ? old.clients : [];
+  const oldJobs = Array.isArray(old.jobs) ? old.jobs : [];
+  // every row in a batch must carry the same fields, so created_at is always present
+  const stamp = (ms) => ({ created_at: new Date(typeof ms === "number" && ms > 0 ? ms : Date.now()).toISOString() });
+
+  const insertNew = async (table, rows) => {
+    let added = 0;
+    for (let i = 0; i < rows.length; i += 200) {
+      const { data, error } = await sb.from(table)
+        .upsert(rows.slice(i, i + 200), { onConflict: "legacy_id", ignoreDuplicates: true })
+        .select("id");
+      if (error) throw new Error("The database refused part of the import: " + error.message);
+      added += data.length;
+    }
+    return added;
+  };
+
+  const clientsAdded = await insertNew("clients", oldClients.map((c) => ({
+    legacy_id: String(c.id), business_name: c.businessName || "", contact_name: c.name || "",
+    phone: c.phone || "", email: c.email || "", address: c.address || "",
+  })));
+
+  const idFor = {};
+  for (const r of await fetchRows("clients", "id, legacy_id, created_at")) if (r.legacy_id) idFor[r.legacy_id] = r.id;
+
+  const jobRows = [];
+  let orphans = 0;
+  for (const raw of oldJobs) {
+    const clientId = idFor[String(raw.clientId)];
+    if (!clientId) { orphans++; continue; }
+    const j = normalizeJob({ ...blankSections(), ...raw });
+    const done = j.status === "completed";
+    jobRows.push({
+      legacy_id: String(j.id), client_id: clientId, job_date: isDate(j.jobDate) ? j.jobDate : null,
+      reference: j.reference || "", status: done ? "completed" : "in_progress",
+      completed_at: done ? (isDate(j.completedAt) ? j.completedAt : (isDate(j.jobDate) ? j.jobDate : today())) : null,
+      details: Object.fromEntries(SECTIONS.map((k) => [k, j[k]])), notes: j.notes || "", ...stamp(j.createdAt),
+    });
+  }
+  const jobsAdded = await insertNew("jobs", jobRows);
+
+  return {
+    clientsFound: oldClients.length, clientsAdded,
+    jobsFound: oldJobs.length, jobsAdded, orphans,
+  };
 }
 
 /* ---- helpers ------------------------------------------------------------- */
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-const today = () => new Date().toISOString().slice(0, 10);
+/* ids for clients and jobs — the database expects this format */
+const newId = () =>
+  (typeof crypto !== "undefined" && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) => (c ^ (Math.random() * 16) >> (c / 4)).toString(16));
+const pad2 = (n) => String(n).padStart(2, "0");
+/* today's date where the user is (not UTC, which rolls over in the evening) */
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
+const dateOnly = (v) => (typeof v === "string" ? v.slice(0, 10) : "");
+const isDate = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 const fmtDate = (d) =>
   d ? new Date(d + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
 const money = (n) =>
@@ -107,18 +219,23 @@ function normalizeJob(j) {
   return { ...j, freight: { on: !!f.on, trucks, note: f.note || "" } };
 }
 
-function blankJob(clientId) {
+function blankSections() {
   return {
-    id: uid(),
-    clientId,
-    jobDate: today(),
-    reference: "",
     prep: { on: false, type: "amazon_walmart", units: "", pallets: "" },
     cross: { on: false, pallets: "", items: "", destination: "", note: "" },
     sanit: { on: false, units: "", note: "" },
     storage: { on: false, pallets: "", items: "", startDate: today(), note: "" },
     freight: { on: false, trucks: [newTruck()], note: "" },
     labor: { on: false, boxes: "", otherDesc: "", otherHours: "", otherCost: "" },
+  };
+}
+function blankJob(clientId) {
+  return {
+    id: newId(),
+    clientId,
+    jobDate: today(),
+    reference: "",
+    ...blankSections(),
     notes: "",
     status: "in_progress",
     completedAt: null,
@@ -140,77 +257,162 @@ function jobServices(j) {
 
 /* ========================================================================== */
 export default function App() {
-  const [authed, setAuthed] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [phase, setPhase] = useState("boot"); // boot | nosetup | signedout | in
+  const [me, setMe] = useState(null);          // my profile row
+  const [loaded, setLoaded] = useState(false);
+  const [loadErr, setLoadErr] = useState(false);
   const [clients, setClients] = useState([]);
   const [jobs, setJobs] = useState([]);
-  const [saveErr, setSaveErr] = useState(false);
+  const [team, setTeam] = useState([]);
+  const [saveErr, setSaveErr] = useState("");
 
   const [view, setView] = useState({ name: "dashboard" }); // {name, id}
 
-  useEffect(() => {
-    (async () => {
-      if (ACCESS) {
-        try {
-          const data = await apiGet();
-          setClients(data.clients || []);
-          setJobs(data.jobs || []);
-          setAuthed(true);
-        } catch { clearAccess(); }
-      }
-      setReady(true);
-    })();
+  const isStaff = me?.role === "admin" || me?.role === "staff";
+  const isAdmin = me?.role === "admin";
+  const canWork = isStaff && !me?.must_change_password;
+
+  const loadProfile = useCallback(async (user) => {
+    const { data } = await sb.from("profiles").select("*").eq("id", user.id).maybeSingle();
+    setMe(data || { id: user.id, email: user.email || "", full_name: "", role: "none", must_change_password: false });
+    setPhase("in");
   }, []);
 
-  const onLogin = async (code) => {
-    setAccess(code);
+  /* start up: read settings, then pick up an existing sign-in if there is one */
+  useEffect(() => {
+    let sub;
+    (async () => {
+      try { await initBackend(); } catch { setPhase("nosetup"); return; }
+      const { data } = sb.auth.onAuthStateChange((event) => {
+        if (event === "SIGNED_OUT") {
+          setMe(null); setLoaded(false); setClients([]); setJobs([]); setTeam([]);
+          setSaveErr(""); setView({ name: "dashboard" }); setPhase("signedout");
+        }
+      });
+      sub = data?.subscription;
+      const { data: s } = await sb.auth.getSession();
+      if (s?.session?.user) await loadProfile(s.session.user);
+      else setPhase("signedout");
+    })();
+    return () => sub?.unsubscribe();
+  }, [loadProfile]);
+
+  const refresh = useCallback(async () => {
     try {
-      const data = await apiGet();
-      setClients(data.clients || []);
-      setJobs(data.jobs || []);
-      setAuthed(true);
-      return true;
-    } catch { clearAccess(); return false; }
-  };
-  const onLogout = () => { clearAccess(); setAuthed(false); };
+      const data = await fetchAll();
+      setClients(data.clients); setJobs(data.jobs); setTeam(data.team);
+      setLoaded(true); setLoadErr(false);
+    } catch { setLoadErr(true); }
+  }, []);
 
-  const persist = async (nextClients, nextJobs) => {
-    setClients(nextClients);
-    setJobs(nextJobs);
-    const ok = await apiSave(nextClients, nextJobs);
-    setSaveErr(!ok);
+  /* load data once signed in, then keep it fresh so the team sees each other's work */
+  useEffect(() => {
+    if (!canWork) return;
+    refresh();
+    const tick = () => { if (document.visibilityState === "visible") refresh(); };
+    const timer = setInterval(tick, 60000);
+    window.addEventListener("focus", tick);
+    return () => { clearInterval(timer); window.removeEventListener("focus", tick); };
+  }, [canWork, refresh]);
+
+  const signOut = () => sb.auth.signOut();
+  const who = (id) => {
+    const p = team.find((t) => t.id === id);
+    return p ? (p.full_name || p.email) : "";
   };
 
-  /* client ops */
-  const upsertClient = (c) => {
-    const exists = clients.some((x) => x.id === c.id);
-    persist(exists ? clients.map((x) => (x.id === c.id ? c : x)) : [...clients, c], jobs);
+  /* Each save writes ONE record, so two people working at once no longer
+     overwrite each other. The screen updates right away; if the database
+     refuses, we say so and reload what is really there. */
+  const failed = (what, error) => {
+    setSaveErr(`Couldn't ${what}${error?.message ? " — " + error.message : ""}. What's on screen has been reloaded from the database.`);
+    refresh();
   };
-  const deleteClient = (id) => persist(clients.filter((c) => c.id !== id), jobs.filter((j) => j.clientId !== id));
 
-  /* job ops */
-  const upsertJob = (j) => {
-    const exists = jobs.some((x) => x.id === j.id);
-    persist(clients, exists ? jobs.map((x) => (x.id === j.id ? j : x)) : [...jobs, j]);
+  const upsertClient = async (c) => {
+    const isNew = !clients.some((x) => x.id === c.id);
+    setClients((prev) => (isNew ? [...prev, c] : prev.map((x) => (x.id === c.id ? c : x))));
+    const row = clientToRow(c);
+    const q = isNew ? sb.from("clients").insert(row) : sb.from("clients").update(row).eq("id", c.id);
+    const { error } = await q.select("id").single();
+    if (error) failed("save that client", error); else setSaveErr("");
   };
-  const deleteJob = (id) => persist(clients, jobs.filter((j) => j.id !== id));
+  const deleteClient = async (id) => {
+    setClients((prev) => prev.filter((c) => c.id !== id));
+    setJobs((prev) => prev.filter((j) => j.clientId !== id));
+    const { data, error } = await sb.from("clients").delete().eq("id", id).select("id");
+    if (error) failed("delete that client", error);
+    else if (!data.length) failed("delete that client", { message: "only an admin can delete a client" });
+    else setSaveErr("");
+  };
 
-  if (!ready) return <div style={{ minHeight: "100vh", background: C.espresso }} />;
-  if (!authed) return <Login onLogin={onLogin} />;
+  const upsertJob = async (j) => {
+    const isNew = !jobs.some((x) => x.id === j.id);
+    setJobs((prev) => (isNew ? [...prev, j] : prev.map((x) => (x.id === j.id ? j : x))));
+    const row = jobToRow(j);
+    const q = isNew ? sb.from("jobs").insert(row) : sb.from("jobs").update(row).eq("id", j.id);
+    const { data, error } = await q.select("*").single();
+    if (error) { failed("save that job", error); return false; }
+    const saved = jobFromRow(data); // picks up who logged / completed it, as stamped by the database
+    setJobs((prev) => prev.map((x) => (x.id === saved.id ? saved : x)));
+    setSaveErr("");
+    return true;
+  };
+  const deleteJob = async (id) => {
+    setJobs((prev) => prev.filter((j) => j.id !== id));
+    const { data, error } = await sb.from("jobs").delete().eq("id", id).select("id");
+    if (error || !data.length) failed("delete that job", error); else setSaveErr("");
+  };
+
+  if (phase === "boot") return <div style={{ minHeight: "100vh", background: C.espresso }} />;
+  if (phase === "nosetup") return (
+    <Gate title="Almost there">
+      <p style={gateText}>This portal isn't connected to its database yet. Add <b>SUPABASE_URL</b> and <b>SUPABASE_PUBLISHABLE_KEY</b> in Netlify (Site configuration → Environment variables), then redeploy. The README has the steps.</p>
+    </Gate>
+  );
+  if (phase === "signedout") return <Login onSignedIn={loadProfile} />;
+
+  if (me.must_change_password) return (
+    <Gate title="Choose your password">
+      <p style={gateText}>You signed in with a temporary password. Pick your own to continue.</p>
+      <PasswordForm me={me} onDone={() => setMe({ ...me, must_change_password: false })} />
+      <button onClick={signOut} style={{ ...linkBtn, marginTop: 14 }}><LogOut size={14} /> Sign out</button>
+    </Gate>
+  );
+
+  if (!isStaff) return (
+    <Gate title={me.role === "client" ? "Client portal coming soon" : "Waiting for access"}>
+      <p style={gateText}>
+        {me.role === "client"
+          ? "Your account is set up. The client portal isn't open yet — we'll let you know when it is."
+          : <>You're signed in as <b>{me.email}</b>, but this account hasn't been given access yet. Ask a Best 3PL admin to turn it on.</>}
+      </p>
+      <button onClick={signOut} style={{ ...btnGhost, marginTop: 4 }}><LogOut size={15} /> Sign out</button>
+    </Gate>
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: C.paper, color: C.ink, fontFamily: SANS }}>
-      <Header view={view} setView={setView} onLogout={onLogout} />
+      <Header view={view} setView={setView} onLogout={signOut} me={me} isAdmin={isAdmin} />
 
       {saveErr && (
         <div style={{ background: C.redBg, color: C.redInk, fontSize: 13, padding: "8px 20px", textAlign: "center", borderBottom: `1px solid ${C.line}` }}>
-          Couldn't save your last change to the server. Your edit is still on screen — check your connection and try again.
+          {saveErr} <button onClick={() => setSaveErr("")} style={{ ...linkBtn, color: C.redInk, marginLeft: 8, textDecoration: "underline" }}>Dismiss</button>
+        </div>
+      )}
+      {loadErr && loaded && (
+        <div style={{ background: C.amberBg, color: C.amberInk, fontSize: 13, padding: "8px 20px", textAlign: "center", borderBottom: `1px solid ${C.line}` }}>
+          Couldn't refresh from the database just now. You may be looking at older data — check your connection.
         </div>
       )}
 
       <main style={{ maxWidth: 1000, margin: "0 auto", padding: "24px 20px 80px" }}>
-        {!ready ? (
-          <div style={{ color: C.muted, padding: 40, textAlign: "center" }}>Loading…</div>
+        {!loaded ? (
+          loadErr ? (
+            <Empty text="Couldn't load your data. Check your connection, then reload the page." />
+          ) : (
+            <div style={{ color: C.muted, padding: 40, textAlign: "center" }}>Loading…</div>
+          )
         ) : view.name === "dashboard" ? (
           <Dashboard clients={clients} jobs={jobs} setView={setView} />
         ) : view.name === "clients" ? (
@@ -222,6 +424,7 @@ export default function App() {
             setView={setView}
             onSave={upsertClient}
             onDelete={deleteClient}
+            isAdmin={isAdmin}
           />
         ) : view.name === "job" ? (
           <JobDetail
@@ -230,6 +433,7 @@ export default function App() {
             setView={setView}
             onSave={upsertJob}
             onDelete={deleteJob}
+            who={who}
           />
         ) : view.name === "jobform" ? (
           <JobForm
@@ -239,82 +443,350 @@ export default function App() {
             setView={setView}
             onSave={upsertJob}
           />
-        ) : null}
+        ) : view.name === "team" && isAdmin ? (
+          <Team me={me} team={team} refresh={refresh} />
+        ) : (
+          <Empty text="That page isn't available." />
+        )}
       </main>
     </div>
   );
 }
 
-/* ---- Login --------------------------------------------------------------- */
-function Login({ onLogin }) {
-  const [code, setCode] = useState("");
-  const [err, setErr] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const go = async () => {
-    if (busy || !code.trim()) return;
-    setBusy(true); setErr(false);
-    const ok = await onLogin(code.trim());
-    setBusy(false);
-    if (!ok) setErr(true);
-  };
+/* ---- signed-out and gate screens ----------------------------------------- */
+const gateText = { color: C.muted, fontSize: 14, lineHeight: 1.5, margin: "0 0 16px" };
+
+function Gate({ title, children }) {
   return (
     <div style={{ minHeight: "100vh", background: C.espresso, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: SANS, padding: 20 }}>
-      <div style={{ width: "100%", maxWidth: 380, background: C.card, borderRadius: 14, padding: 32, boxShadow: "0 20px 50px rgba(0,0,0,.25)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+      <div style={{ width: "100%", maxWidth: 400, background: C.card, borderRadius: 14, padding: 32, boxShadow: "0 20px 50px rgba(0,0,0,.25)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
           <img src={LOGO} alt="Best 3PL" style={{ width: 40, height: 40, borderRadius: 9, display: "block" }} />
           <div style={{ fontFamily: MONO, fontWeight: 700, letterSpacing: 1, fontSize: 18 }}>BEST 3PL</div>
         </div>
-        <div style={{ color: C.muted, fontSize: 13, marginBottom: 22 }}>Job & billing portal</div>
-        <label style={{ fontSize: 12, fontWeight: 600, color: C.slateSoft }}>Access code</label>
-        <input
-          autoFocus
-          type="password"
-          value={code}
-          onChange={(e) => { setCode(e.target.value); setErr(false); }}
-          onKeyDown={(e) => e.key === "Enter" && go()}
-          placeholder="Enter code"
-          style={{ ...inputStyle, marginTop: 6, marginBottom: err ? 6 : 18 }}
-        />
-        {err && <div style={{ color: C.redInk, fontSize: 13, marginBottom: 14 }}>That code didn't match. Try again.</div>}
-        <button onClick={go} disabled={busy} style={{ ...btnPrimary, width: "100%", justifyContent: "center", opacity: busy ? 0.6 : 1 }}>{busy ? "Signing in…" : "Sign in"}</button>
+        {title && <h1 style={{ margin: "0 0 8px", fontSize: 19, fontWeight: 800 }}>{title}</h1>}
+        {children}
       </div>
     </div>
   );
 }
 
+function Login({ onSignedIn }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const go = async () => {
+    if (busy || !email.trim() || !password) return;
+    setBusy(true); setErr("");
+    const { data, error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+    if (error || !data?.user) {
+      setBusy(false);
+      setErr(error?.status === 400 || /invalid/i.test(error?.message || "")
+        ? "That email and password didn't match. Try again."
+        : "Couldn't sign in" + (error?.message ? " — " + error.message : "") + ".");
+      return;
+    }
+    await onSignedIn(data.user);
+  };
+  const onKey = (e) => e.key === "Enter" && go();
+  return (
+    <Gate>
+      <div style={{ color: C.muted, fontSize: 13, margin: "-10px 0 22px" }}>Job & billing portal</div>
+      <Field label="Email">
+        <input autoFocus type="email" autoComplete="username" value={email} onChange={(e) => { setEmail(e.target.value); setErr(""); }} onKeyDown={onKey} placeholder="you@company.com" style={inputStyle} />
+      </Field>
+      <div style={{ height: 12 }} />
+      <Field label="Password">
+        <input type="password" autoComplete="current-password" value={password} onChange={(e) => { setPassword(e.target.value); setErr(""); }} onKeyDown={onKey} placeholder="Your password" style={inputStyle} />
+      </Field>
+      {err && <div style={{ color: C.redInk, fontSize: 13, marginTop: 10 }}>{err}</div>}
+      <button onClick={go} disabled={busy} style={{ ...btnPrimary, width: "100%", justifyContent: "center", marginTop: 18, opacity: busy ? 0.6 : 1 }}>{busy ? "Signing in…" : "Sign in"}</button>
+      <div style={{ color: C.muted, fontSize: 12.5, marginTop: 14 }}>Forgot your password? Ask a Best 3PL admin to reset it.</div>
+    </Gate>
+  );
+}
+
+/* set a new password — used for the forced first-time change and from the header */
+function PasswordForm({ me, onDone }) {
+  const [a, setA] = useState("");
+  const [b, setB] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const go = async () => {
+    if (busy) return;
+    if (a.length < 8) { setErr("Use at least 8 characters."); return; }
+    if (a !== b) { setErr("Those two passwords don't match."); return; }
+    setBusy(true); setErr("");
+    const { error } = await sb.auth.updateUser({ password: a });
+    if (error) { setBusy(false); setErr("Couldn't set that password — " + error.message); return; }
+    const { error: e2 } = await sb.from("profiles").update({ must_change_password: false }).eq("id", me.id);
+    setBusy(false);
+    if (e2) { setErr("Password changed, but couldn't finish — " + e2.message); return; }
+    onDone();
+  };
+  const onKey = (e) => e.key === "Enter" && go();
+  return (
+    <div>
+      <Field label="New password">
+        <input type="password" autoComplete="new-password" value={a} onChange={(e) => { setA(e.target.value); setErr(""); }} onKeyDown={onKey} placeholder="At least 8 characters" style={inputStyle} />
+      </Field>
+      <div style={{ height: 12 }} />
+      <Field label="New password again">
+        <input type="password" autoComplete="new-password" value={b} onChange={(e) => { setB(e.target.value); setErr(""); }} onKeyDown={onKey} style={inputStyle} />
+      </Field>
+      {err && <div style={{ color: C.redInk, fontSize: 13, marginTop: 10 }}>{err}</div>}
+      <button onClick={go} disabled={busy} style={{ ...btnPrimary, marginTop: 16, opacity: busy ? 0.6 : 1 }}><KeyRound size={15} /> {busy ? "Saving…" : "Save password"}</button>
+    </div>
+  );
+}
+
 /* ---- Header / nav -------------------------------------------------------- */
-function Header({ view, setView, onLogout }) {
+function Header({ view, setView, onLogout, me, isAdmin }) {
+  const [account, setAccount] = useState(false);
+  const [changed, setChanged] = useState(false);
+  const active = (name) => view.name === name || (name === "clients" && view.name === "client");
   const tab = (name, label) => (
     <button
       onClick={() => setView({ name })}
       style={{
         background: "none", border: "none", cursor: "pointer", fontFamily: SANS, fontSize: 14,
-        fontWeight: view.name === name || (name === "clients" && (view.name === "client")) ? 700 : 500,
-        color: view.name === name || (name === "clients" && view.name === "client") ? "#fff" : "rgba(255,255,255,.65)",
-        padding: "6px 2px", borderBottom: view.name === name || (name === "clients" && view.name === "client") ? "2px solid #fff" : "2px solid transparent",
+        fontWeight: active(name) ? 700 : 500,
+        color: active(name) ? "#fff" : "rgba(255,255,255,.65)",
+        padding: "6px 2px", borderBottom: active(name) ? "2px solid #fff" : "2px solid transparent",
       }}
     >
       {label}
     </button>
   );
+  const pill = { display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,.12)", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontSize: 13, fontFamily: SANS };
   return (
     <header style={{ background: C.espresso, color: "#fff", position: "sticky", top: 0, zIndex: 5 }}>
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "0 20px", height: 58, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
-          <button onClick={() => setView({ name: "dashboard" })} style={{ display: "flex", alignItems: "center", gap: 9, background: "none", border: "none", cursor: "pointer" }}>
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "0 20px", minHeight: 58, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", columnGap: 22, rowGap: 4, flexWrap: "wrap", padding: "8px 0" }}>
+          <button onClick={() => setView({ name: "dashboard" })} style={{ display: "flex", alignItems: "center", gap: 9, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
             <img src={LOGO} alt="Best 3PL" style={{ width: 32, height: 32, borderRadius: 7, display: "block" }} />
-            <span style={{ fontFamily: MONO, fontWeight: 700, letterSpacing: 1, fontSize: 16, color: "#fff" }}>BEST 3PL</span>
+            <span style={{ fontFamily: MONO, fontWeight: 700, letterSpacing: 1, fontSize: 16, color: "#fff", whiteSpace: "nowrap" }}>BEST 3PL</span>
           </button>
           <nav style={{ display: "flex", gap: 18, alignItems: "center" }}>
             {tab("dashboard", "Dashboard")}
             {tab("clients", "Clients")}
+            {isAdmin && tab("team", "Team")}
           </nav>
         </div>
-        <button onClick={onLogout} title="Sign out" style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,.12)", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontSize: 13, fontFamily: SANS }}>
-          <LogOut size={15} /> Sign out
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button onClick={() => { setChanged(false); setAccount(true); }} title="Your account" style={{ ...pill, background: "none", maxWidth: 220 }}>
+            <User size={15} /> <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{me.full_name || me.email}</span>
+          </button>
+          <button onClick={onLogout} title="Sign out" style={pill}><LogOut size={15} /> Sign out</button>
+        </div>
       </div>
+      {account && (
+        <Modal onClose={() => setAccount(false)} title="Your account">
+          <div style={{ color: C.ink, fontSize: 14 }}>
+            <div style={{ fontWeight: 700 }}>{me.full_name || "—"}</div>
+            <div style={{ color: C.muted }}>{me.email} · {ROLE_LABEL[me.role] || me.role}</div>
+          </div>
+          <SectionTitle>Change password</SectionTitle>
+          {changed
+            ? <div style={{ background: C.greenBg, color: C.greenInk, borderRadius: 8, padding: "10px 12px", fontSize: 13 }}>Password changed.</div>
+            : <div style={{ color: C.ink }}><PasswordForm me={me} onDone={() => setChanged(true)} /></div>}
+        </Modal>
+      )}
     </header>
+  );
+}
+
+/* ---- Team (admins only) -------------------------------------------------- */
+const ROLE_LABEL = { admin: "Admin", staff: "Staff", none: "No access", client: "Client" };
+
+function tempPassword() {
+  const abc = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  const pick = new Uint32Array(12);
+  crypto.getRandomValues(pick);
+  return Array.from(pick, (n) => abc[n % abc.length]).join("");
+}
+
+function Team({ me, team, refresh }) {
+  const [adding, setAdding] = useState(false);
+  const [resetting, setResetting] = useState(null); // profile
+  const [handoff, setHandoff] = useState(null);     // {name, email, password, isReset}
+  const [err, setErr] = useState("");
+  const people = team.filter((p) => p.role !== "client");
+
+  const setRole = async (p, role) => {
+    setErr("");
+    const { error } = await sb.from("profiles").update({ role }).eq("id", p.id).select("id").single();
+    if (error) setErr(`Couldn't change ${p.full_name || p.email}'s access — ${error.message}`);
+    refresh();
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 8 }}>
+        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Team</h1>
+        <button onClick={() => setAdding(true)} style={btnPrimary}><UserPlus size={16} /> Add team member</button>
+      </div>
+      <p style={{ color: C.muted, fontSize: 13.5, margin: "0 0 18px", maxWidth: 640, lineHeight: 1.5 }}>
+        Everyone signs in with their own email and password. <b>Staff</b> can manage clients and jobs. <b>Admins</b> can also manage this page and delete clients. <b>No access</b> blocks a login without deleting it.
+      </p>
+
+      {err && <div style={{ background: C.redBg, color: C.redInk, borderRadius: 8, padding: "10px 12px", fontSize: 13, marginBottom: 12 }}>{err}</div>}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {people.map((p) => (
+          <div key={p.id} style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 14.5 }}>
+                {p.full_name || p.email}{p.id === me.id && <span style={{ color: C.muted, fontWeight: 500 }}> · you</span>}
+              </div>
+              <div style={{ color: C.muted, fontSize: 12.5, marginTop: 2 }}>
+                {p.email}{p.must_change_password ? " · hasn't set their own password yet" : ""}
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <select
+                value={p.role}
+                disabled={p.id === me.id}
+                title={p.id === me.id ? "You can't change your own access" : "Access level"}
+                onChange={(e) => setRole(p, e.target.value)}
+                style={{ ...inputStyle, width: 130, padding: "8px 10px" }}
+              >
+                <option value="admin">Admin</option>
+                <option value="staff">Staff</option>
+                <option value="none">No access</option>
+              </select>
+              <button onClick={() => setResetting(p)} style={btnGhost}><KeyRound size={14} /> Reset password</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ height: 28 }} />
+      <SectionTitle>Bring over the old portal's data</SectionTitle>
+      <LegacyImport refresh={refresh} />
+
+      {adding && <AddMember onClose={() => setAdding(false)} onAdded={(h) => { setAdding(false); setHandoff(h); refresh(); }} />}
+      {resetting && <ResetPassword person={resetting} onClose={() => setResetting(null)} onReset={(h) => { setResetting(null); setHandoff(h); refresh(); }} />}
+      {handoff && (
+        <Modal onClose={() => setHandoff(null)} title={handoff.isReset ? "Password reset" : "Team member added"}>
+          <p style={{ color: C.muted, fontSize: 14, margin: 0, lineHeight: 1.5 }}>
+            Send {handoff.name || "them"} these sign-in details. They'll be asked to choose their own password the first time they sign in. This temporary password isn't shown again.
+          </p>
+          <CopyBlock text={`Best 3PL portal: ${window.location.origin}\nEmail: ${handoff.email}\nTemporary password: ${handoff.password}`} />
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button onClick={() => setHandoff(null)} style={btnPrimary}>Done</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function CopyBlock({ text }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(text); setCopied(true); } catch { setCopied(false); }
+  };
+  return (
+    <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10, padding: 12 }}>
+      <pre style={{ margin: 0, fontFamily: MONO, fontSize: 13, whiteSpace: "pre-wrap", wordBreak: "break-all", color: C.ink }}>{text}</pre>
+      <button onClick={copy} style={{ ...btnGhost, marginTop: 10 }}><Copy size={14} /> {copied ? "Copied" : "Copy"}</button>
+    </div>
+  );
+}
+
+function AddMember({ onClose, onAdded }) {
+  const [m, setM] = useState({ full_name: "", email: "", role: "staff" });
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const valid = m.full_name.trim() && /^\S+@\S+\.\S+$/.test(m.email.trim());
+  const go = async () => {
+    if (busy || !valid) return;
+    setBusy(true); setErr("");
+    const password = tempPassword();
+    const email = m.email.trim().toLowerCase(); // logins are stored in lowercase
+    const r = await apiPost("/api/team", { action: "add", full_name: m.full_name.trim(), email, role: m.role, password });
+    setBusy(false);
+    if (!r.ok) { setErr(r.error || "Couldn't add that team member."); return; }
+    onAdded({ name: m.full_name.trim(), email, password, isReset: false });
+  };
+  return (
+    <Modal onClose={onClose} title="Add team member">
+      <Field label="Name"><input autoFocus value={m.full_name} onChange={(e) => setM({ ...m, full_name: e.target.value })} style={inputStyle} placeholder="e.g. Ara" /></Field>
+      <Field label="Email (this is what they sign in with)"><input type="email" value={m.email} onChange={(e) => setM({ ...m, email: e.target.value })} style={inputStyle} placeholder="name@company.com" /></Field>
+      <Field label="Access">
+        <select value={m.role} onChange={(e) => setM({ ...m, role: e.target.value })} style={inputStyle}>
+          <option value="staff">Staff — manage clients and jobs</option>
+          <option value="admin">Admin — staff, plus manage the team and delete clients</option>
+        </select>
+      </Field>
+      <div style={{ color: C.muted, fontSize: 12.5 }}>You'll get a temporary password to pass along. No email is sent.</div>
+      {err && <div style={{ color: C.redInk, fontSize: 13 }}>{err}</div>}
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 4 }}>
+        <button onClick={onClose} style={btnGhost}>Cancel</button>
+        <button disabled={!valid || busy} onClick={go} style={{ ...btnPrimary, opacity: valid && !busy ? 1 : 0.5, cursor: valid && !busy ? "pointer" : "not-allowed" }}>{busy ? "Adding…" : "Add team member"}</button>
+      </div>
+    </Modal>
+  );
+}
+
+function ResetPassword({ person, onClose, onReset }) {
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const name = person.full_name || person.email;
+  const go = async () => {
+    if (busy) return;
+    setBusy(true); setErr("");
+    const password = tempPassword();
+    const r = await apiPost("/api/team", { action: "reset_password", id: person.id, password });
+    setBusy(false);
+    if (!r.ok) { setErr(r.error || "Couldn't reset that password."); return; }
+    onReset({ name, email: person.email, password, isReset: true });
+  };
+  return (
+    <Modal onClose={onClose} title={`Reset ${name}'s password?`}>
+      <p style={{ color: C.muted, fontSize: 14, margin: 0, lineHeight: 1.5 }}>Their current password stops working. You'll get a temporary one to pass along, and they'll choose a new one when they sign in.</p>
+      {err && <div style={{ color: C.redInk, fontSize: 13 }}>{err}</div>}
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+        <button onClick={onClose} style={btnGhost}>Keep current password</button>
+        <button onClick={go} disabled={busy} style={{ ...btnPrimary, opacity: busy ? 0.6 : 1 }}>{busy ? "Resetting…" : "Reset password"}</button>
+      </div>
+    </Modal>
+  );
+}
+
+function LegacyImport({ refresh }) {
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [done, setDone] = useState(null);
+  const go = async () => {
+    if (busy || !code.trim()) return;
+    setBusy(true); setErr(""); setDone(null);
+    try { setDone(await importLegacy(code.trim())); await refresh(); }
+    catch (e) { setErr(e.message || "The import didn't finish."); }
+    setBusy(false);
+  };
+  return (
+    <Card>
+      <p style={{ color: C.muted, fontSize: 13.5, margin: "0 0 12px", lineHeight: 1.5, maxWidth: 640 }}>
+        Copies the clients and jobs from the old shared-code portal into the new database. Enter the old access code to confirm. It's safe to run more than once — anything already brought over is skipped, and nothing in the old portal is changed.
+      </p>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <div style={{ flex: "1 1 220px", maxWidth: 300 }}>
+          <Field label="Old access code"><input type="password" value={code} onChange={(e) => { setCode(e.target.value); setErr(""); }} onKeyDown={(e) => e.key === "Enter" && go()} style={inputStyle} placeholder="The code the team used to share" /></Field>
+        </div>
+        <button onClick={go} disabled={busy || !code.trim()} style={{ ...btnPrimary, opacity: busy || !code.trim() ? 0.5 : 1 }}><Upload size={15} /> {busy ? "Bringing data over…" : "Bring data over"}</button>
+      </div>
+      {err && <div style={{ color: C.redInk, fontSize: 13, marginTop: 12 }}>{err}</div>}
+      {done && (
+        <div style={{ marginTop: 12, background: C.greenBg, color: C.greenInk, borderRadius: 8, padding: "10px 12px", fontSize: 13, lineHeight: 1.5 }}>
+          <ShieldCheck size={14} style={{ verticalAlign: -2 }} /> Done. Clients: {done.clientsAdded} added, {done.clientsFound - done.clientsAdded} already here. Jobs: {done.jobsAdded} added, {done.jobsFound - done.jobsAdded - done.orphans} already here.
+          {done.orphans > 0 && <> {done.orphans} job{done.orphans === 1 ? "" : "s"} skipped because {done.orphans === 1 ? "its" : "their"} client no longer exists in the old portal.</>}
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -434,7 +906,7 @@ function Clients({ clients, jobs, setView, onSave, onDelete }) {
 
 /* ---- Client form (modal) ------------------------------------------------- */
 function ClientForm({ existing, onClose, onSave }) {
-  const [c, setC] = useState(existing || { id: uid(), name: "", businessName: "", address: "", phone: "", email: "" });
+  const [c, setC] = useState(existing || { id: newId(), name: "", businessName: "", address: "", phone: "", email: "" });
   const set = (k, v) => setC({ ...c, [k]: v });
   const valid = (c.businessName || c.name).trim().length > 0;
   return (
@@ -453,7 +925,7 @@ function ClientForm({ existing, onClose, onSave }) {
 }
 
 /* ---- Client detail + job history ---------------------------------------- */
-function ClientDetail({ client, jobs, setView, onSave, onDelete }) {
+function ClientDetail({ client, jobs, setView, onSave, onDelete, isAdmin }) {
   const [editing, setEditing] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   if (!client) return <Empty text="Client not found." />;
@@ -479,7 +951,7 @@ function ClientDetail({ client, jobs, setView, onSave, onDelete }) {
           <Info icon={<Mail size={14} />} label="Email" value={client.email} />
           <Info icon={<MapPin size={14} />} label="Address" value={client.address} />
         </div>
-        <button onClick={() => setConfirmDel(true)} style={{ ...linkBtn, color: C.redInk, marginTop: 16 }}><Trash2 size={13} /> Delete client</button>
+        {isAdmin && <button onClick={() => setConfirmDel(true)} style={{ ...linkBtn, color: C.redInk, marginTop: 16 }}><Trash2 size={13} /> Delete client</button>}
       </div>
 
       <SectionTitle>Job history</SectionTitle>
@@ -620,7 +1092,7 @@ function JobForm({ existing, clients, preselect, setView, onSave }) {
 }
 
 /* ---- Job detail ---------------------------------------------------------- */
-function JobDetail({ job, client, setView, onSave, onDelete }) {
+function JobDetail({ job, client, setView, onSave, onDelete, who }) {
   const [confirmDel, setConfirmDel] = useState(false);
   const [emailStatus, setEmailStatus] = useState("idle");
   if (!job) return <Empty text="Job not found." />;
@@ -629,14 +1101,19 @@ function JobDetail({ job, client, setView, onSave, onDelete }) {
   const sendEmail = async (target) => {
     setEmailStatus("sending");
     const mail = buildEmail(target, cname);
-    const ok = await apiSendCompletion({ to: BILLING_EMAIL, subject: mail.subject, body: mail.body });
-    setEmailStatus(ok ? "sent" : "failed");
+    const r = await apiPost("/api/send-completion", { subject: mail.subject, body: mail.body });
+    setEmailStatus(r.ok ? "sent" : "failed");
   };
   const complete = async () => {
     const updated = { ...job, status: "completed", completedAt: today() };
-    onSave(updated);
-    sendEmail(updated);
+    const saved = await onSave(updated);
+    if (saved) sendEmail(updated); // only tell billing once the job really is saved as complete
   };
+  const trail = [
+    job.legacyId ? "Brought over from the old portal" : (who(job.createdBy) && `Logged by ${who(job.createdBy)}`),
+    job.status === "completed" && who(job.completedBy) && `Completed by ${who(job.completedBy)}`,
+    job.status !== "completed" && who(job.updatedBy) && job.updatedBy !== job.createdBy && `Last edited by ${who(job.updatedBy)}`,
+  ].filter(Boolean).join(" · ");
 
   return (
     <div>
@@ -652,6 +1129,7 @@ function JobDetail({ job, client, setView, onSave, onDelete }) {
         <h1 style={{ margin: "4px 0 4px", fontSize: 22, fontWeight: 800 }}>{cname}</h1>
         {job.reference && <div style={{ color: C.muted }}>{job.reference}</div>}
         <div style={{ marginTop: 12 }}><Stamp status={job.status} /></div>
+        {trail && <div style={{ color: C.muted, fontSize: 12.5, marginTop: 10 }}>{trail}</div>}
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 18 }}>
           {job.status === "in_progress" ? (
@@ -802,7 +1280,7 @@ function BackLink({ onClick, children }) {
 function Modal({ title, children, onClose }) {
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(20,24,28,.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 20, zIndex: 20, overflowY: "auto" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: C.card, borderRadius: 14, width: "100%", maxWidth: 460, padding: 22, marginTop: "6vh", boxShadow: "0 24px 60px rgba(0,0,0,.3)", display: "flex", flexDirection: "column", gap: 12 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: C.card, color: C.ink, borderRadius: 14, width: "100%", maxWidth: 460, padding: 22, marginTop: "6vh", boxShadow: "0 24px 60px rgba(0,0,0,.3)", display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{title}</h2>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted }}><X size={20} /></button>
